@@ -12,10 +12,10 @@
 # Load conda
 module load tuni/miniforge3/24.9.0
 source $(conda info --base)/etc/profile.d/conda.sh
-conda activate OadTR
+conda activate Oadtr
 
 # Move to project folder
-cd ~/tdropreg/T2T-ViT
+cd ~/OadTR/OadTR
 
 # Prevent picking up old user-site packages
 export PYTHONNOUSERSITE=1
