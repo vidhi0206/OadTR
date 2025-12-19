@@ -87,7 +87,7 @@ def get_args_parser():
     parser.add_argument("--num_heads", default=8, type=int, help="input feature dims")
     parser.add_argument("--num_layers", default=3, type=int, help="input feature dims")
     parser.add_argument(
-        "--attn_dropout_rate", default=0.1, type=float, help="attn dropout"
+        "--attn_dropout_rate", default=0.2, type=float, help="attn dropout"
     )
     parser.add_argument(
         "--positional_encoding_type",
@@ -103,7 +103,7 @@ def get_args_parser():
         help="Size of the embeddings",
     )
     parser.add_argument(
-        "--dropout_rate", default=0.1, type=float, help="Dropout applied "
+        "--dropout_rate", default=0.2, type=float, help="Dropout applied "
     )
 
     parser.add_argument("--numclass", default=22, type=int, help="Number of class")
@@ -132,7 +132,7 @@ def get_args_parser():
     )
 
     parser.add_argument(
-        "--output_dir", default="models", help="path where to save, empty for no saving"
+        "--output_dir", default="models/en_2", help="path where to save, empty for no saving"
     )
     parser.add_argument("--seed", default=20, type=int)
     parser.add_argument("--resume", default="", help="resume from checkpoint")
@@ -141,7 +141,7 @@ def get_args_parser():
     )
 
     parser.add_argument("--eval", action="store_true")
-    parser.add_argument("--num_workers", default=8, type=int)
+    parser.add_argument("--num_workers", default=0, type=int)
 
     # distributed training parameters
     parser.add_argument(
@@ -152,5 +152,24 @@ def get_args_parser():
         default="tcp://127.0.0.1:12342",
         help="url used to set up distributed training",
     )
+    parser.add_argument("--drop_mha", default="drop_out", type=str, help="[drop_attn, drop_k, drop_q, drop_v, drop_k&q, drop_kq, drop_out, drop_none]")
+    """
+    drop_attn = drop attention, dropout before multiplying with V but after softmax
+    drop_k = dropout on key (dropkey)
+    drop_q = dropout on query
+    drop_v = dropout on value
+    drop_k&q = dropout on key and query
+    dropkey = dropout on product of key and query (right before softmax)
+    drop_out = standard dropout after multiplying with V
+    drop_none = no dropout 
+    no dropout will be applied when dropout rate is 0.0 or none of the above options is selected
+    """
+    parser.add_argument(
+        "--dr_mha", default="Q", type=str, help="[Q,K,V,none]"
+    )
+    parser.add_argument(
+        "--dr_mlp_mode", default=2, type=int, help="[0,1,2]"
+    )
+    parser.add_argument('--Lambda', type=float, default=0.01, help='lambda for trace regularization term') 
     # 'env://'
     return parser

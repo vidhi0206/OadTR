@@ -6,29 +6,34 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
         },
         {
             "name": "Train",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "4"
-            },
             "console": "integratedTerminal",
             "args": [
                 "--num_layers",
-                "3",
-                "--decoder_layers",
-                "5",
+                "2",                
                 "--enc_layers",
                 "64",
+                "--feature",
+                "Anet2016_feature_v2",
                 "--output_dir",
-                "models/en_3_decoder_5_lr_drop_1",
+                "models/en_2",
+                "--dr_mha",
+                "Q",
+                "--dr_mlp_mode",
+                "2",
+                "--Lambda",
+                "0.01",
+                "--drop_mha",
+                "drop_none"
             ]
         },
     ]

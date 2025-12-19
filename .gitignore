@@ -1,0 +1,88 @@
+# =========================
+#  Folders to ignore    
+# =========================
+/data/*
+*.pth
+
+
+# =========================
+# Python bytecode & caches
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+
+# =========================
+# Packaging / distribution
+# =========================
+build/
+dist/
+develop-eggs/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =========================
+# Installer logs
+# =========================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =========================
+# Unit test / coverage
+# =========================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# =========================
+# Pytest
+# =========================
+.pytest_cache/
+
+# =========================
+# Jupyter Notebook
+# =========================
+.ipynb_checkpoints
+
+# =========================
+# IDEs / Editors
+# =========================
+#.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Environment variables
+# =========================
+.env.local
+.env.*.local

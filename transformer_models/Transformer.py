@@ -1,11 +1,12 @@
 from torch import nn
-from .Attention import SelfAttention
+from .Attention import SelfAttention,SelfAttentionDr
+from .Linear_dr import Linear_dr
 
 
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
-        self.fn = fn
+        self.fn = fn # PreNormDrop
 
     def forward(self, x):
         return self.fn(x) + x
@@ -26,21 +27,35 @@ class PreNormDrop(nn.Module):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.dropout = nn.Dropout(p=dropout_rate)
-        self.fn = fn
+        self.fn = fn #"self attention"
 
     def forward(self, x):
-        return self.dropout(self.fn(self.norm(x)))
+        return self.fn(self.norm(x))
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout_rate):
+    def __init__(self, dim, hidden_dim, dropout_rate,dr_mlp_mode=0):
         super().__init__()
+        self.dr_mlp_mode=dr_mlp_mode
         self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
             nn.GELU(),
-            nn.Dropout(p=dropout_rate),
+            nn.Dropout(p=dropout_rate) if self.dr_mlp_mode==0 else nn.Identity(),
             nn.Linear(hidden_dim, dim),
-            nn.Dropout(p=dropout_rate),
+            nn.Dropout(p=dropout_rate) if self.dr_mlp_mode==0 else nn.Identity(),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+class FeedForwardDr(nn.Module):
+    def __init__(self, dim, hidden_dim, dropout_rate, dr_mlp_mode=0):
+        super().__init__()
+        self.dr_mlp_mode=dr_mlp_mode
+        self.net = nn.Sequential(
+            Linear_dr(dim, hidden_dim,dropout_rate) if self.dr_mlp_mode==2 else nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            Linear_dr(hidden_dim, dim,dropout_rate) if self.dr_mlp_mode==2 else nn.Linear(hidden_dim, dim),
         )
 
     def forward(self, x):
@@ -56,7 +71,13 @@ class TransformerModel(nn.Module):
         mlp_dim,
         dropout_rate=0.1,
         attn_dropout_rate=0.1,
+        drop_mha="drop_none",
+        dr_mha="none",
+        dr_mlp_mode=0,
     ):
+        self.drop_mha = drop_mha
+        self.dr_mha = dr_mha
+        self.dr_mlp_mode = dr_mlp_mode
         super().__init__()
         layers = []
         for _ in range(depth):
@@ -67,11 +88,12 @@ class TransformerModel(nn.Module):
                             dim,
                             dropout_rate,
                             SelfAttention(
-                                dim, heads=heads, dropout_rate=attn_dropout_rate
+                                dim, heads=heads, dropout_rate=attn_dropout_rate, drop_mha=self.drop_mha, dr_mlp_mode=self.dr_mlp_mode
+                            ) if self.dr_mha == "none" else SelfAttentionDr(dim, heads=heads, dropout_rate=attn_dropout_rate, dr_mha=self.dr_mha, dr_mlp_mode=self.dr_mlp_mode
                             ),
                         )
                     ),
-                    Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout_rate))),
+                    Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout_ratedr_mlp_mode=self.dr_mlp_mode) if self.dr_mlp_mode==0 else FeedForwardDr(dim, mlp_dim, dropout_rate,dr_mlp_mode=self.dr_mlp_mode))),
                 ]
             )
         self.net = nn.Sequential(*layers)

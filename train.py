@@ -50,6 +50,7 @@ def train_one_epoch(
     device: torch.device,
     epoch: int,
     max_norm: float = 0,
+    Lambda=0.0,
 ):
     model.train()
     criterion.train()
@@ -59,6 +60,17 @@ def train_one_epoch(
     header = "Epoch: [{}]".format(epoch)
     print_freq = 50
     num_class = 22
+
+    tr_loss_total = 0.0
+    count_infinite_tr_total = 0.0
+    l2_wq_T_wk_X_T_total = 0.0
+    l2_wq_T_wk_total = 0.0
+    l2_r_lambda_total = 0.0
+    l2_lambda_total = 0.0
+    l2_R_total = 0.0
+    X_T_X_total = 0.0
+    l2_P_total = 0.0
+
     for (
         camera_inputs,
         motion_inputs,
@@ -93,7 +105,30 @@ def train_one_epoch(
         losses = sum(
             loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict
         )
+        tr_loss = 0.0
+        for module in model.modules():
+            if hasattr(module, "tr") and isinstance(module.tr, torch.Tensor):
+                tr_loss += module.tr.sum()        
+            # sum all the other attributes if they exist
+            if hasattr(module, "count_infinite_tr"):
+                count_infinite_tr_total += module.count_infinite_tr
+            if hasattr(module, "l2_wq_T_wk_X_T"):
+                l2_wq_T_wk_X_T_total += module.l2_wq_T_wk_X_T
+            if hasattr(module, "l2_wq_T_wk"):
+                l2_wq_T_wk_total += module.l2_wq_T_wk
+            if hasattr(module, "l2_r_lambda"):
+                l2_r_lambda_total += module.l2_r_lambda
+            if hasattr(module, "l2_lambda"):
+                l2_lambda_total += module.l2_lambda
+            if hasattr(module, "l2_R"):
+                l2_R_total += module.l2_R
+            if hasattr(module, "X_T_X"):
+                X_T_X_total += module.X_T_X
+            if hasattr(module, "l2_P"):
+                l2_P_total += module.l2_P
 
+        # add tr_loss to total loss
+        losses = losses + Lambda * tr_loss
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = utils.reduce_dict(loss_dict)
         loss_dict_reduced_unscaled = {
@@ -120,7 +155,18 @@ def train_one_epoch(
         optimizer.step()
 
         metric_logger.update(
-            loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled
+            loss=loss_value, 
+            tr_loss=tr_loss,
+            count_infinite_tr=count_infinite_tr_total,
+            l2_wq_T_wk_X_T=l2_wq_T_wk_X_T_total,
+            l2_wq_T_wk=l2_wq_T_wk_total,
+            l2_r_lambda=l2_r_lambda_total,
+            l2_lambda=l2_lambda_total,
+            l2_R=l2_R_total,
+            X_T_X=X_T_X_total,
+            l2_P=l2_P_total,
+            **loss_dict_reduced_scaled,
+            **loss_dict_reduced_unscaled
         )
         # metric_logger.update(class_error=loss_dict_reduced['class_error'])
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])

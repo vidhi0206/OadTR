@@ -32,6 +32,9 @@ class VisionTransformer_v3(nn.Module):
         with_camera=True,
         with_motion=True,
         num_channels=3072,
+        drop_mha="drop_none",
+        dr_mha="none",
+        dr_mlp_mode=0,
     ):
         super(VisionTransformer_v3, self).__init__()
 
@@ -46,6 +49,9 @@ class VisionTransformer_v3(nn.Module):
         self.num_channels = num_channels
         self.dropout_rate = dropout_rate
         self.attn_dropout_rate = attn_dropout_rate
+        self.drop_mha = drop_mha
+        self.dr_mha = dr_mha   
+        self.dr_mlp_mode = dr_mlp_mode
         self.conv_patch_representation = conv_patch_representation
 
         # self.num_patches = int((img_dim // patch_dim) ** 2)
@@ -74,6 +80,9 @@ class VisionTransformer_v3(nn.Module):
             hidden_dim,
             self.dropout_rate,
             self.attn_dropout_rate,
+            drop_mha=self.drop_mha,
+            dr_mha=self.dr_mha,
+            dr_mlp_mode=self.dr_mlp_mode,
         )
         self.pre_head_ln = nn.LayerNorm(embedding_dim)
 
@@ -176,7 +185,7 @@ class VisionTransformer_v3(nn.Module):
         # x = torch.cat((cls_tokens, x), dim=1)
         x = torch.cat((x, cls_tokens), dim=1)
         x = self.position_encoding(x)
-        x = self.pe_dropout(x)  # not delete
+        #x = self.pe_dropout(x)  # not delete
 
         # apply transformer
         x = self.encoder(x)

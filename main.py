@@ -19,6 +19,20 @@ from train import train_one_epoch, evaluate
 from test import test_one_epoch
 import torch.nn as nn
 
+def is_experiment_done(experiment_name, logs_dir="logs"):
+    """
+    Check if the experiment is already completed by looking for its log directory.
+
+    Args:
+        experiment_name (str): The name of the experiment.
+        logs_dir (str): Path to the logs directory.
+
+    Returns:
+        bool: True if the experiment log exists, False otherwise.
+    """
+    experiment_path = os.path.join(logs_dir, experiment_name)
+    print(experiment_path)
+    return os.path.exists(experiment_path)
 
 def main(args):
     utils.init_distributed_mode(args)
@@ -41,6 +55,25 @@ def main(args):
                 os.remove(Path(args.output_dir) / "log_tran&test.txt")
     logger = utl.setup_logger(os.path.join(this_dir, "log_dist.txt"), command=command)
     # logger.output_print("git:\n  {}\n".format(utils.get_sha()))
+
+    output_base = f'{args.output}//{args.feature}'
+    parts = [
+        str(args.epochs),
+        f"dr_{args.dr_mha}-{args.drop_mha}",
+        f"mlp_{args.dr_mlp_mode}",
+    ]
+    if args.attn_drop_rate >= 0:
+        parts.append(f"dr_ratio_{args.attn_drop_rate}")
+
+    if args.dr_mlp_mode == 2 or (args.dr_mlp_mode == 1 and args.drop_mha == "drop_none"):
+        parts.append(f"lambda_dr_{args.Lambda}")
+
+    # Final experiment name
+    exp_name = "_".join(parts)
+    print(exp_name)
+    if is_experiment_done("log_tran&test.txt", exp_name):
+        print(f"[INFO] Experiment {exp_name} is already completed.")
+        return
 
     # save args
     for arg in vars(args):
@@ -72,6 +105,9 @@ def main(args):
         attn_dropout_rate=args.attn_dropout_rate,
         num_channels=args.dim_feature,
         positional_encoding_type=args.positional_encoding_type,
+        drop_mha=args.drop_mha,
+        dr_mha=args.dr_mha,
+        dr_mlp_mode=args.dr_mlp_mode,
     )
 
     # Compute FLOPs
@@ -208,6 +244,7 @@ def main(args):
             device,
             epoch,
             args.clip_max_norm,
+            args.Lambda
         )
 
         lr_scheduler.step()
