@@ -112,20 +112,20 @@ def train_one_epoch(
             # sum all the other attributes if they exist
             if hasattr(module, "count_infinite_tr"):
                 count_infinite_tr_total += module.count_infinite_tr
-            if hasattr(module, "l2_wq_T_wk_X_T"):
-                l2_wq_T_wk_X_T_total += module.l2_wq_T_wk_X_T
-            if hasattr(module, "l2_wq_T_wk"):
-                l2_wq_T_wk_total += module.l2_wq_T_wk
-            if hasattr(module, "l2_r_lambda"):
-                l2_r_lambda_total += module.l2_r_lambda
-            if hasattr(module, "l2_lambda"):
-                l2_lambda_total += module.l2_lambda
-            if hasattr(module, "l2_R"):
-                l2_R_total += module.l2_R
-            if hasattr(module, "X_T_X"):
-                X_T_X_total += module.X_T_X
-            if hasattr(module, "l2_P"):
-                l2_P_total += module.l2_P
+            # if hasattr(module, "l2_wq_T_wk_X_T"):
+            #     l2_wq_T_wk_X_T_total += module.l2_wq_T_wk_X_T
+            # if hasattr(module, "l2_wq_T_wk"):
+            #     l2_wq_T_wk_total += module.l2_wq_T_wk
+            # if hasattr(module, "l2_r_lambda"):
+            #     l2_r_lambda_total += module.l2_r_lambda
+            # if hasattr(module, "l2_lambda"):
+            #     l2_lambda_total += module.l2_lambda
+            # if hasattr(module, "l2_R"):
+            #     l2_R_total += module.l2_R
+            # if hasattr(module, "X_T_X"):
+            #     X_T_X_total += module.X_T_X
+            # if hasattr(module, "l2_P"):
+            #     l2_P_total += module.l2_P
 
         # add tr_loss to total loss
         losses = losses + Lambda * tr_loss
@@ -158,13 +158,13 @@ def train_one_epoch(
             loss=loss_value, 
             tr_loss=tr_loss,
             count_infinite_tr=count_infinite_tr_total,
-            l2_wq_T_wk_X_T=l2_wq_T_wk_X_T_total,
-            l2_wq_T_wk=l2_wq_T_wk_total,
-            l2_r_lambda=l2_r_lambda_total,
-            l2_lambda=l2_lambda_total,
-            l2_R=l2_R_total,
-            X_T_X=X_T_X_total,
-            l2_P=l2_P_total,
+            # l2_wq_T_wk_X_T=l2_wq_T_wk_X_T_total,
+            # l2_wq_T_wk=l2_wq_T_wk_total,
+            # l2_r_lambda=l2_r_lambda_total,
+            # l2_lambda=l2_lambda_total,
+            # l2_R=l2_R_total,
+            # X_T_X=X_T_X_total,
+            # l2_P=l2_P_total,
             **loss_dict_reduced_scaled,
             **loss_dict_reduced_unscaled
         )
@@ -311,6 +311,10 @@ def evaluate(model, criterion, data_loader, device, logger, args, epoch, nprocs=
             logger.output_print(
                 "[Epoch-{}] [IDU-{}] mAP: {:.4f}\n".format(epoch, feat_type, map)
             )
+            metric_logger.update(
+                epoch=epoch,
+                map=map,
+            )
 
             for i, ap in enumerate(aps):
                 cls_name = all_class_name[i]
@@ -328,6 +332,10 @@ def evaluate(model, criterion, data_loader, device, logger, args, epoch, nprocs=
         logger.output_print(
             "[Epoch-{}] [IDU-{}] mAP: {:.4f}\n".format(epoch, feat_type, map)
         )
+        metric_logger.update(
+                epoch=epoch,
+                map=map,
+            )
 
         # results_dec = {}
         # results_dec["probs"] = np.asarray(dec_score_metrics).T

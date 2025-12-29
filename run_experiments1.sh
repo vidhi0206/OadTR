@@ -22,12 +22,11 @@ export PYTHONNOUSERSITE=1
 
 LAMBDAS=(0.001)
 DATASETS=("t_imgnet")
-DR_MHA_LIST=("V" "none" "K" "Q" )
-DR_MLP_MODES=(2 1)
-DROP_MHA_LIST=("drop_none")
+DR_MHA_LIST=("none")
+DR_MLP_MODES=(0 1)
+DROP_MHA_LIST=("drop_attn" "dropkey" "drop_out")
 DROP_RATIOS=(0.2)
 GAMMA=(0.1 0.05 0.01)
-
 # Adjust per-GPU batch to avoid OOM
 
 
@@ -49,10 +48,10 @@ for DROP_MHA in "${DROP_MHA_LIST[@]}"; do
                         --Lambda ${LAMBDA} \
                         --dropout_rate ${DROP_RATIO} \
                         --attn_dropout_rate ${DROP_RATIO} \
-                        --Gamma ${GAMMA_VAL} \
-                        --epochs 10
+                        --Gamma ${GAMMA_VAL}
                         echo end
                     done
+
                 done
             done
         done

@@ -18,7 +18,7 @@ from dataset import TRNTHUMOSDataLayer
 from train import train_one_epoch, evaluate
 from test import test_one_epoch
 import torch.nn as nn
-
+print("Starting script")
 def is_experiment_done(experiment_name, logs_dir="logs"):
     """
     Check if the experiment is already completed by looking for its log directory.
@@ -53,28 +53,32 @@ def main(args):
                 os.remove(os.path.join(this_dir, "log_dist.txt"))
             if os.path.exists(Path(args.output_dir) / "log_tran&test.txt"):
                 os.remove(Path(args.output_dir) / "log_tran&test.txt")
-    logger = utl.setup_logger(os.path.join(this_dir, "log_dist.txt"), command=command)
+    
     # logger.output_print("git:\n  {}\n".format(utils.get_sha()))
 
-    output_base = f'{args.output}//{args.feature}'
+    output_base = f'{args.output_dir}//{args.feature}'
     parts = [
         str(args.epochs),
         f"dr_{args.dr_mha}-{args.drop_mha}",
         f"mlp_{args.dr_mlp_mode}",
     ]
-    if args.attn_drop_rate >= 0:
-        parts.append(f"dr_ratio_{args.attn_drop_rate}")
+    if args.attn_dropout_rate >= 0:
+        parts.append(f"dr_ratio_{args.attn_dropout_rate}")
 
     if args.dr_mlp_mode == 2 or (args.dr_mlp_mode == 1 and args.drop_mha == "drop_none"):
         parts.append(f"lambda_dr_{args.Lambda}")
+    parts.append(f"Gamma_{args.Gamma}")
 
     # Final experiment name
     exp_name = "_".join(parts)
+    args.output_dir = os.path.join(output_base, exp_name)
     print(exp_name)
-    if is_experiment_done("log_tran&test.txt", exp_name):
+    if is_experiment_done("log_tran&test.txt", args.output_dir):
         print(f"[INFO] Experiment {exp_name} is already completed.")
         return
-
+    os.makedirs(args.output_dir, exist_ok=True)
+    this_dir = args.output_dir
+    logger = utl.setup_logger(os.path.join(this_dir, "log_dist.txt"), command=command)
     # save args
     for arg in vars(args):
         logger.output_print("{}:{}".format(arg, getattr(args, arg)))
@@ -147,7 +151,7 @@ def main(args):
     model_without_ddp = model
     if args.distributed:
         # torch.cuda.set_device(args.gpu)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu],find_unused_parameters=True)
         model_without_ddp = model.module
     elif args.dataparallel:
         args.gpu = "0,1,2,3"
@@ -161,7 +165,7 @@ def main(args):
         lr=args.lr,
         weight_decay=args.weight_decay,
     )
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_drop)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_drop,gamma =args.Gamma)
 
     dataset_train = TRNTHUMOSDataLayer(phase="train", args=args)
     dataset_val = TRNTHUMOSDataLayer(phase="test", args=args)
@@ -248,22 +252,22 @@ def main(args):
         )
 
         lr_scheduler.step()
-        if args.output_dir:
-            checkpoint_paths = [output_dir / "checkpoint.pth"]
-            # extra checkpoint before LR drop and every 100 epochs
-            if (epoch + 1) % args.lr_drop == 0 or (epoch + 1) % 100 == 0:
-                checkpoint_paths.append(output_dir / f"checkpoint{epoch:04}.pth")
-            for checkpoint_path in checkpoint_paths:
-                utils.save_on_master(
-                    {
-                        "model": model_without_ddp.state_dict(),
-                        "optimizer": optimizer.state_dict(),
-                        "lr_scheduler": lr_scheduler.state_dict(),
-                        "epoch": epoch,
-                        "args": args,
-                    },
-                    checkpoint_path,
-                )
+        # if args.output_dir:
+        #     checkpoint_paths = [output_dir / "checkpoint.pth"]
+        #     # extra checkpoint before LR drop and every 100 epochs
+        #     if (epoch + 1) % args.lr_drop == 0 or (epoch + 1) % 100 == 0:
+        #         checkpoint_paths.append(output_dir / f"checkpoint{epoch:04}.pth")
+        #     for checkpoint_path in checkpoint_paths:
+        #         utils.save_on_master(
+        #             {
+        #                 "model": model_without_ddp.state_dict(),
+        #                 "optimizer": optimizer.state_dict(),
+        #                 "lr_scheduler": lr_scheduler.state_dict(),
+        #                 "epoch": epoch,
+        #                 "args": args,
+        #             },
+        #             checkpoint_path,
+        #         )
 
         test_stats = evaluate(
             model,
@@ -293,10 +297,15 @@ def main(args):
 
 
 if __name__ == "__main__":
+    
+
+    print("RANK:", os.environ.get("RANK"))
+    print("WORLD_SIZE:", os.environ.get("WORLD_SIZE"))
     parser = argparse.ArgumentParser(
         "OadTR training and evaluation script", parents=[get_args_parser()]
     )
     args = parser.parse_args()
+    args.distributed = False
     # args.dataset = osp.basename(osp.normpath(args.data_root)).upper()
     with open(args.dataset_file, "r") as f:
         data_info = json.load(f)["THUMOS"]
@@ -306,4 +315,5 @@ if __name__ == "__main__":
     args.numclass = len(args.class_index)
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    print(args.output_dir)
     main(args)

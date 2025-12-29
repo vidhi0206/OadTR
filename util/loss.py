@@ -88,11 +88,13 @@ class SetCriterion(nn.Module):
 
         # loss_ce = F.cross_entropy(outputs, targets, ignore_index=21)
         target = targets.float()
+        print("target",target)
         # logsoftmax = nn.LogSoftmax(dim=1).to(input.device)
         ignore_index = 21  # -1 改为21 更好一点
         if ignore_index >= 0:
             notice_index = [i for i in range(target.shape[-1]) if i != self.ignore_index]
             output = torch.sum(-target[:, notice_index] * self.logsoftmax(input[:, notice_index]), 1)
+            print("output",output)
             if output.sum() == 0:   # 全为 ignore 类
                 loss_ce = torch.tensor(0.).to(input.device).type_as(target)
             else:
@@ -103,6 +105,7 @@ class SetCriterion(nn.Module):
                 loss_ce = torch.mean(output)
             else:
                 loss_ce = torch.sum(output)
+        print(loss_ce)
         if torch.isnan(loss_ce).sum()>0:
             set_trace()
         losses = {name: loss_ce}

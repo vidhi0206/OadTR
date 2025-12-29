@@ -22,6 +22,7 @@ class SelfAttention(nn.Module):
 
         self.drop_mha = drop_mha
         self.dr_mlp_mode = dr_mlp_mode
+        self.drop_ratio=dropout_rate
 
     def forward(self, x):
         B, N, C = x.shape
@@ -66,6 +67,7 @@ class SelfAttention(nn.Module):
             m_r = torch.ones_like(score) * self.drop_ratio
             score = score * torch.bernoulli(m_r)
             row_sum = score.sum(dim=-1, keepdim=True)
+            row_sum = row_sum.clamp(min=1e-6)
             score = score / row_sum
             attn = score @ v
             x = attn.transpose(1, 2).reshape(B, N, C)
@@ -111,13 +113,13 @@ class SelfAttentionDr(nn.Module):
         self.register_buffer("P", self.compute_P(dim, dropout_rate))
         self.tr = torch.zeros(1)
         self.count_infinite_tr = torch.zeros(1)
-        self.l2_wq_T_wk_X_T = torch.zeros(1)
-        self.l2_wq_T_wk = torch.zeros(1)
-        self.l2_r_lambda = torch.zeros(1)
-        self.l2_lambda = torch.zeros(1)
-        self.l2_R = torch.zeros(1)
-        self.X_T_X = torch.zeros(1)
-        self.l2_P = torch.zeros(1)
+        # self.l2_wq_T_wk_X_T = torch.zeros(1)
+        # self.l2_wq_T_wk = torch.zeros(1)
+        # self.l2_r_lambda = torch.zeros(1)
+        # self.l2_lambda = torch.zeros(1)
+        # self.l2_R = torch.zeros(1)
+        # self.X_T_X = torch.zeros(1)
+        # self.l2_P = torch.zeros(1)
 
     def forward(self, x):
         B, N, C = x.shape
@@ -136,7 +138,7 @@ class SelfAttentionDr(nn.Module):
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        o = (attn @ v).transpose(1, 2).reshape(B, N, C)
 
         if self.dr_mha == "Q":
             self.tr=self.compute_dr_Q(x)
@@ -146,9 +148,9 @@ class SelfAttentionDr(nn.Module):
             self.tr=self.compute_dr_V(x)
         else:
             self.tr=torch.zeros(1)
-        x = self.proj_dr(x)
+        o = self.proj_dr(o)
         #x = self.proj_drop(x)
-        return x
+        return o
     
     def compute_dr_Q(self, X):
         batch_size, num_tokens, C = X.shape
@@ -156,22 +158,22 @@ class SelfAttentionDr(nn.Module):
 
         X_T = X.transpose(1, 2)
         R = torch.bmm(X_T, X).to(device)
-        self.X_T_X = torch.norm(R, dim=(1, 2))[0]
+        # self.X_T_X = torch.norm(R, dim=(1, 2))[0]
         R.mul_(self.P)
-        self.l2_P = torch.norm(self.P)
+        # self.l2_P = torch.norm(self.P)
         wq = self.qkv.weight[:C, :]
         wk = self.qkv.weight[C:2*C, :]  # Shape: (num_features, num_features)
         lambda1 = wq.T @ wk  # Shape: (num_features, num_features)
-        self.l2_wq_T_wk = torch.norm(lambda1)
+        # self.l2_wq_T_wk = torch.norm(lambda1)
         Omega = torch.bmm(lambda1.unsqueeze(0).expand(batch_size, -1, -1), X_T).to(
             device
         )
         Lambda = torch.bmm(Omega, Omega.transpose(1, 2))
         R_lambda = torch.bmm(R, Lambda)
-        self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
-        self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
-        self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
-        self.l2_R = torch.norm(R, dim=(1, 2))[0]
+        # self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
+        # self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
+        # self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
+        # self.l2_R = torch.norm(R, dim=(1, 2))[0]
         count_infinite_tr = torch.isinf(R_lambda).any(dim=(1, 2)) | torch.isnan(
             R_lambda
         ).any(dim=(1, 2))
@@ -187,22 +189,22 @@ class SelfAttentionDr(nn.Module):
 
         X_T = X.transpose(1, 2)
         R = torch.bmm(X_T, X).to(device)
-        self.X_T_X = torch.norm(R, dim=(1, 2))[0]
+        # self.X_T_X = torch.norm(R, dim=(1, 2))[0]
         R.mul_(self.P)
-        self.l2_P = torch.norm(self.P)
+        # self.l2_P = torch.norm(self.P)
         wq = self.qkv.weight[:C, :]
         wk = self.qkv.weight[C:2*C, :]  # Shape: (num_features, num_features)
         lambda1 = wk.T @ wq  # Shape: (num_features, num_features)
-        self.l2_wq_T_wk = torch.norm(lambda1)
+        # self.l2_wq_T_wk = torch.norm(lambda1)
         Omega = torch.bmm(lambda1.unsqueeze(0).expand(batch_size, -1, -1), X_T).to(
             device
         )
         Lambda = torch.bmm(Omega, Omega.transpose(1, 2))
         R_lambda = torch.bmm(R, Lambda)
-        self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
-        self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
-        self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
-        self.l2_R = torch.norm(R, dim=(1, 2))[0]
+        # self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
+        # self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
+        # self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
+        # self.l2_R = torch.norm(R, dim=(1, 2))[0]
         count_infinite_tr = torch.isinf(R_lambda).any(dim=(1, 2)) | torch.isnan(
             R_lambda
         ).any(dim=(1, 2))
@@ -217,19 +219,19 @@ class SelfAttentionDr(nn.Module):
 
         X_T = X.transpose(1, 2)
         R = torch.bmm(X_T, X).to(device)
-        self.X_T_X = torch.norm(R, dim=(1, 2))[0]
+        # self.X_T_X = torch.norm(R, dim=(1, 2))[0]
         R.mul_(self.P)
-        self.l2_P = torch.norm(self.P)
+        # self.l2_P = torch.norm(self.P)
 
         wv =self.qkv.weight[2*C:3*C, :] # Shape: (num_features, num_features)
-        self.l2_wq_T_wk = torch.norm(wv)
+        # self.l2_wq_T_wk = torch.norm(wv)
         Omega = wv.unsqueeze(0).expand(batch_size, -1, -1).to(device)
         Lambda = torch.bmm(Omega, Omega.transpose(1, 2))
         R_lambda = torch.bmm(R, Lambda)
-        self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
-        self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
-        self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
-        self.l2_R = torch.norm(R, dim=(1, 2))[0]
+        # self.l2_wq_T_wk_X_T = torch.norm(Omega, dim=(1, 2))[0]
+        # self.l2_r_lambda = torch.norm(R_lambda, dim=(1, 2))[0]
+        # self.l2_lambda = torch.norm(Lambda, dim=(1, 2))[0]
+        # self.l2_R = torch.norm(R, dim=(1, 2))[0]
         count_infinite_tr = torch.isinf(R_lambda).any(dim=(1, 2)) | torch.isnan(
             R_lambda
         ).any(dim=(1, 2))
@@ -238,49 +240,7 @@ class SelfAttentionDr(nn.Module):
         tr[count_infinite_tr] = 0  # Set trace to zero where infinite values are found
         return tr.sum()
 
-    def compute_tr_R_lambda_single_image(self, img_tokens, should_log_norms=False):
-        device = img_tokens.device
-
-        N = img_tokens.shape[0]
-        R = (img_tokens.T @ img_tokens).to(device)
-        X_T_X = torch.norm(R)
-        R = torch.mul(R, self.P)
-        l2_P = torch.norm(self.P)
-        wk = self.k.weight
-        wq = self.q.weight
-        lambda1 = wq.T @ wk
-        Omega = (wq.T @ wk @ img_tokens.T).to(device)
-        Lambda = Omega @ Omega.T
-        R_lambda = R @ Lambda.double()
-        l2_wq_T_wk_X_T = torch.norm(Omega)
-        l2_wq_T_wk = torch.norm(lambda1)
-        l2_r_lambda = torch.norm(R_lambda)
-        l2_lambda = torch.norm(Lambda)
-        l2_R = torch.norm(R)
-        count_infinite_tr = 0
-        if torch.isinf(R_lambda).any() or torch.isnan(R_lambda).any():
-            count_infinite_tr = 1
-            tr = torch.zeros([]).to(device)
-            l2_r_lambda = -1
-            return tr
-        tr = torch.trace(R_lambda)
-        tr = torch.abs(tr)
-        tr = tr / N
-        if should_log_norms == True:
-            return (
-                tr,
-                X_T_X,
-                l2_P,
-                l2_wq_T_wk_X_T,
-                l2_wq_T_wk,
-                l2_r_lambda,
-                l2_lambda,
-                l2_R,
-                count_infinite_tr,
-            )
-        else:
-            return tr
-
+    
     def compute_P(self, D, drop_ratio):
         P = np.full((D, D), drop_ratio**2)
         return torch.from_numpy(P).float()

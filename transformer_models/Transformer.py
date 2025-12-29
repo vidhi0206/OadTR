@@ -93,7 +93,7 @@ class TransformerModel(nn.Module):
                             ),
                         )
                     ),
-                    Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout_ratedr_mlp_mode=self.dr_mlp_mode) if self.dr_mlp_mode==0 else FeedForwardDr(dim, mlp_dim, dropout_rate,dr_mlp_mode=self.dr_mlp_mode))),
+                    Residual(PreNorm(dim, FeedForward(dim, mlp_dim, dropout_rate=attn_dropout_rate,dr_mlp_mode=self.dr_mlp_mode) if self.dr_mlp_mode==0 else FeedForwardDr(dim, mlp_dim, dropout_rate,dr_mlp_mode=self.dr_mlp_mode))),
                 ]
             )
         self.net = nn.Sequential(*layers)

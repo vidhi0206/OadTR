@@ -7,8 +7,6 @@ import subprocess
 import time
 from collections import defaultdict, deque
 import datetime
-import pickle
-from typing import Optional, List
 import torch
 import torch.distributed as dist
 
@@ -145,6 +143,17 @@ def init_distributed_mode(args):
     else:
         print('Not using distributed mode')
         args.distributed = False
+        args.rank = 0
+        args.world_size = 1
+        args.gpu = 0
+        return
+
+    # Skip DDP if world_size <= 1
+    if args.world_size <= 1:
+        print('Single GPU detected, skipping distributed init')
+        args.distributed = False
+        args.rank = 0
+        args.gpu = 0
         return
 
     args.distributed = True

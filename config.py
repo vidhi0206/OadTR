@@ -13,9 +13,9 @@ def str2bool(string):
 def get_args_parser():
     parser = argparse.ArgumentParser("Set IDU Online Detector", add_help=False)
     parser.add_argument("--lr", default=1e-4, type=float)  # 1e-4
-    parser.add_argument("--batch_size", default=128, type=int)
+    parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--weight_decay", default=1e-4, type=float)
-    parser.add_argument("--epochs", default=5, type=int)
+    parser.add_argument("--epochs", default=10, type=int)
     parser.add_argument(
         "--resize_feature",
         default=False,
@@ -171,5 +171,6 @@ def get_args_parser():
         "--dr_mlp_mode", default=2, type=int, help="[0,1,2]"
     )
     parser.add_argument('--Lambda', type=float, default=0.01, help='lambda for trace regularization term') 
+    parser.add_argument('--Gamma', type=float, default=0.01, help='gamma for trace regularization term')
     # 'env://'
     return parser
